@@ -12,7 +12,7 @@ Wish list:
 # How to Build
 
 # Visual Studio 2022
- In command line window:
- Md build
- Md build
- YourQtDirPath\6.4.2\msvc2019_64\bin\qt-cmake ..
+ in command line window:
+ cd build
+ md build
+ yourQtDirPath\6.4.2\msvc2019_64\bin\qt-cmake ..
