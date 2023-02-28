@@ -363,3 +363,10 @@ MigrationBackup/
 FodyWeavers.xsd
 /build
 /build1
+
+#MY file
+CMakeLists - Qt6.txt
+RMBuild.bat
+RMBuild1.bat
+qtmake.bat
+
