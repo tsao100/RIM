@@ -7,10 +7,11 @@
 #include "..\AlignmentClassLibraryTest\AlignmentLib.h"
 
 using namespace std;
-int ReadPrj(QString fileName);
+int ReadPrj(QString fileName, Ui_RIMClass& ui);
 int ReadHALD(const char* filename);
 int ReadVALD(QString fileName);
 TrackProject tp;
+TrackCenterline* tcl;
 
 RIM::RIM(QWidget *parent)
     : QMainWindow(parent)
@@ -68,16 +69,16 @@ RIM::RIM(QWidget *parent)
             // Do something with the selected file here
             //qDebug() << "Selected file:" << fileName;
         //ReadPrj(fileName);
-        ReadPrj("D:\\AlignmentTools\\ini\\CP04.prj");
+        ReadPrj("D:\\AlignmentTools\\ini\\CP04.prj", ui);
         //}
         });
 
 
     
     // Add items to the list control
-    ui.listWidget->addItem("Item 1");
-    ui.listWidget->addItem("Item 2");
-    ui.listWidget->addItem("Item 3");
+    //ui.listWidget->addItem("Item 1");
+    //ui.listWidget->addItem("Item 2");
+    //ui.listWidget->addItem("Item 3");
     //ui.listWidget->setSelectionMode(ui.listWidget->MultiSelection);
 
 
@@ -89,6 +90,7 @@ RIM::RIM(QWidget *parent)
         // Do something with the selected item(s)
         for (QListWidgetItem* selectedItem : selectedItems) {
             qDebug() << "Selected item: " << selectedItem->text();
+            tcl = tp.getCenterline(selectedItem->text().toStdString());
         }
         });
 
@@ -152,7 +154,7 @@ bool isNumeric(char ct[8]) {
     return true;
 }
 
-int ReadPrj(QString fileName) {
+int ReadPrj(QString fileName, Ui_RIMClass& ui) {
     // Open the text file for reading
     ifstream file(fileName.toStdString());
 
@@ -176,9 +178,10 @@ int ReadPrj(QString fileName) {
         //s = s + str.c_str() + QString("\n");
         //path += str;
         ReadHALD(str.c_str());
+        ui.listWidget->addItem(QString(str.c_str()));
     }
 
-    QMessageBox::question(nullptr, fileName, s, QMessageBox::Yes | QMessageBox::No);
+    //QMessageBox::question(nullptr, fileName, s, QMessageBox::Yes | QMessageBox::No);
 
 
     return 0;
@@ -313,7 +316,7 @@ int ReadHALD(const char* filename) {
     string path("D:\\AlignmentTools\\DataTable\\");
     path += filename;
     result = deserializeFile(path.c_str());
-    for (size_t i = 0; i < result.size()-1; i++)
+    for (size_t i = 0; i < result.size() - 1; i++)
     {
         CTangent* t = NULL;
         CCircularArc* c = NULL;
@@ -330,27 +333,34 @@ int ReadHALD(const char* filename) {
         case acLib::SPIRAL:
             tsc = string(result[i].TSC, 2);
             if (tsc == "TS") {
-                sp = new CSpiral(Point(result[i].Easting, result[i].Northing), 
-                    result[i].Chainage, result[i].Azimuth, result[i].length, INFINITY, result[i+1].Radius);}
+                sp = new CSpiral(Point(result[i].Easting, result[i].Northing),
+                    result[i].Chainage, result[i].Azimuth, result[i].length, INFINITY,
+                    result[i + 1].Radius * LeftRightByAzimuth(result[i].Azimuth, result[i + 1].Azimuth));
+            }
             if (tsc == "CS") {
                 sp = new CSpiral(Point(result[i].Easting, result[i].Northing),
-                    result[i].Chainage, result[i].Azimuth, result[i].length, result[i - 1].Radius, INFINITY);}
+                    result[i].Chainage, result[i].Azimuth, result[i].length,
+                    result[i - 1].Radius * LeftRightByAzimuth(result[i].Azimuth, result[i + 1].Azimuth), INFINITY);
+            }
             tcl->addCurve(sp);
             break;
         case acLib::ARC:
             c = new CCircularArc(Point(result[i].Easting, result[i].Northing),
-                result[i].Chainage, result[i].Azimuth, result[i].length, result[i ].Radius);
-        tcl->addCurve(c);
-        break;
+                result[i].Chainage, result[i].Azimuth, result[i].length,
+                result[i].Radius * LeftRightByAzimuth(result[i].Azimuth, result[i + 1].Azimuth));
+            tcl->addCurve(c);
+            break;
         case acLib::HALFSINE:
             tsc = string(result[i].TSC, 2);
             if (tsc == "TS") {
                 hs = new CHalfSine(Point(result[i].Easting, result[i].Northing),
-                    result[i].Chainage, result[i].Azimuth, result[i].length, INFINITY, result[i + 1].Radius);
+                    result[i].Chainage, result[i].Azimuth, result[i].length, INFINITY,
+                    result[i + 1].Radius * LeftRightByAzimuth(result[i].Azimuth, result[i + 1].Azimuth));
             }
             if (tsc == "CS") {
                 hs = new CHalfSine(Point(result[i].Easting, result[i].Northing),
-                    result[i].Chainage, result[i].Azimuth, result[i].length, INFINITY, result[i - 1].Radius);
+                    result[i].Chainage, result[i].Azimuth, result[i].length, INFINITY,
+                    result[i - 1].Radius * LeftRightByAzimuth(result[i].Azimuth, result[i + 1].Azimuth));
             }
             tcl->addCurve(hs);
             break;
@@ -358,11 +368,13 @@ int ReadHALD(const char* filename) {
             tsc = string(result[i].TSC, 2);
             if (tsc == "TS") {
                 sp = new CSpiral(Point(result[i].Easting, result[i].Northing),
-                    result[i].Chainage, result[i].Azimuth, result[i].length, INFINITY, result[i + 1].Radius);
+                    result[i].Chainage, result[i].Azimuth, result[i].length, INFINITY,
+                    result[i + 1].Radius * LeftRightByAzimuth(result[i].Azimuth, result[i + 1].Azimuth));
             }
             if (tsc == "CS") {
                 sp = new CSpiral(Point(result[i].Easting, result[i].Northing),
-                    result[i].Chainage, result[i].Azimuth, result[i].length, INFINITY, result[i - 1].Radius);
+                    result[i].Chainage, result[i].Azimuth, result[i].length, INFINITY,
+                    result[i - 1].Radius * LeftRightByAzimuth(result[i].Azimuth, result[i + 1].Azimuth));
             }
             tcl->addCurve(sp);
             break;
@@ -370,11 +382,13 @@ int ReadHALD(const char* filename) {
             tsc = string(result[i].TSC, 2);
             if (tsc == "TS") {
                 sp = new CSpiral(Point(result[i].Easting, result[i].Northing),
-                    result[i].Chainage, result[i].Azimuth, result[i].length, INFINITY, result[i + 1].Radius);
+                    result[i].Chainage, result[i].Azimuth, result[i].length, INFINITY,
+                    result[i + 1].Radius * LeftRightByAzimuth(result[i].Azimuth, result[i + 1].Azimuth));
             }
             if (tsc == "CS") {
                 sp = new CSpiral(Point(result[i].Easting, result[i].Northing),
-                    result[i].Chainage, result[i].Azimuth, result[i].length, result[i - 1].Radius,INFINITY);
+                    result[i].Chainage, result[i].Azimuth, result[i].length,
+                    result[i - 1].Radius * LeftRightByAzimuth(result[i].Azimuth, result[i + 1].Azimuth), INFINITY);
             }
             tcl->addCurve(sp);
             break;
